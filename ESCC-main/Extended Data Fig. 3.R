@@ -15,7 +15,6 @@ codex$subCelltype = gsub('_','-',
                          codex$subCelltype)
 codex$subCelltype = factor(codex$subCelltype,
                            levels = rank$subCelltype)
-qsave(codex,file = '~/workspace/proj_ESCC_STW_ZWM_2022_01/liuliqiu//final_analysis/final_codex_20260215.qs')
 DimPlot(codex,group.by = 'subCelltype',raster = T)
 #Extended Data Fig 3c -----
 Idents(codex) = 'subCelltype'

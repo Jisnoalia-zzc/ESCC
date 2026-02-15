@@ -19,7 +19,7 @@ qsave(codex,file = '~/workspace/proj_ESCC_STW_ZWM_2022_01/liuliqiu//final_analys
 DimPlot(codex,group.by = 'subCelltype',raster = T)
 #Extended Data Fig 3c -----
 Idents(codex) = 'subCelltype'
-codex = subset(codex,subCelltype=='Epithelium',invert=T)
+
 codex <- NormalizeData(object = codex, normalization.method = "CLR", margin = 2)
 codex  = ScaleData(codex)
 avg = AverageExpression(codex,layer='data')

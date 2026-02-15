@@ -17,29 +17,8 @@ codex$subCelltype = factor(codex$subCelltype,
                            levels = rank$subCelltype)
 DimPlot(codex,group.by = 'subCelltype',raster = T)
 #Extended Data Fig 3c -----
-Idents(codex) = 'subCelltype'
 
-codex <- NormalizeData(object = codex, normalization.method = "CLR", margin = 2)
-codex  = ScaleData(codex)
-avg = AverageExpression(codex,layer='data')
-avg = avg$Akoya
-rank = rank %>% filter(subCelltype!='Epithelium')
-avg = avg[,match(rank$subCelltype,colnames(avg))]
-
-palette_length <- 100
-my_color <- colorRampPalette(c("#2696f2","#58a3e8", "white","#ff8f6b","#d9100b"))(palette_length)
-my_breaks <- c(seq(-4, 0, length.out=ceiling(palette_length/2) + 1),
-               seq(0.05,4, length.out=floor(palette_length/2)))
-anno_cols = rank
-names(major) = unique(anno_cols$Celltype.y)
-annotation_colors = list(
-  subCelltype = annotation_colors$subCelltype[names(annotation_colors$subCelltype) !="Epithelium"],
-  Celltype.y = annotation_colors$Celltype.y
-  
-)
-rownames(anno_cols)=anno_cols$subCelltype
-anno_cols = anno_cols[,c(2,1)]
-save(cell_color,major,file = '~/ESCC_codex/codex_color.Rdata')
+load(file = '~/ESCC_codex/codex_color.Rdata')
 pdf("~/ESCC_codex/CODEX_Average_Scaled_Celltype_Marker_Expression.pdf",width = 10,height = 15)
 pheatmap::pheatmap(
 

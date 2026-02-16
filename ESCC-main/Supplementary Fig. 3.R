@@ -38,4 +38,4 @@ dev_cc_ratio %>%
                                    hjust = 1,
                                    size = 12),
         axis.text.y = element_text(color = "black"))+
-  labs(y = 'The ratio of CC in development region',x = 'Development')
+  labs(y = 'The ratio of CC in ME region',x = 'ME')

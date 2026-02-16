@@ -15,27 +15,7 @@ for (image_name in image_names) {
 }
 dev.off()
 #Supplementary Fig3c -----
-development %>%
-  group_by(file,development,cc_15) %>% 
-  summarise(number = n()) %>%
-  ungroup() %>% 
-  group_by(file,development) %>%
-  mutate(sum = sum(number),
-         ratio = number/sum) -> dev_cc_ratio
-# dev_cc_ratio %>% left_join(total_number,by = "file") %>%
-#   mutate(normalize_ratio = ratio/total) -> dev_cc_ratio
-
-dev_cc_ratio$development = factor(dev_cc_ratio$development,
-                                 levels =  c('Nor','Hyp','MiD','MoD','SD&CA','ICA','MCA'))
-# library(gg)
-
-dev_cc_ratio$cc_15 = factor(dev_cc_ratio$cc_15,
-                            levels = paste0("CC",1:15))
-compare_list = list(
-  
-)
-
-my_vector = levels(dev_cc_ratio$development)
+my_vector = levels(dev_cc_ratio$ME)
 result_list = list()
 for (i in 1:(length(my_vector) - 1)) {
   # 选取当前元素和下一个元素
@@ -46,7 +26,7 @@ result_list
 
 
 dev_cc_ratio %>%
-  ggplot(.,aes(x=development,y=ratio,color= development))+
+  ggplot(.,aes(x=ME,y=ratio,color= ME))+
   # geom_jitter_rast()+
   geom_boxplot()+
   stat_compare_means(comparisons = result_list,show.legend = F,label = "p.signif",label.y = 0.75,step.increase = 0.1)+

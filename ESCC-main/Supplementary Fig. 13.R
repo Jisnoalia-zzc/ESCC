@@ -5,29 +5,41 @@ FeatureScatter(co, pt.size = 2, feature1 = 'GEM', feature2 = 'ENTPD1') +stat_cor
   stat_regline_equation(aes(label=paste(..eq.label..)),size=6,vjust=1.6)+stat_smooth(method='lm', color="black", se=TRUE)+labs(title='')+guides(size=FALSE)+theme(legend.title = element_blank(),legend.text = element_text(size=15))+
   scale_color_manual(values ='#F37F4F')
 #Supplementary Fig. 13 b -----
-load('ESCC_RNA_FPKM_edit.RData')
-head(meta)
-library(ggrepel)
-library(ggrastr)
-
+library(data.table)
+library(tidyverse)
+library(ggplot2)
+phe = fread('~/workspace/proj_ESCC_STW_ZWM_2022_01/zzc/TCGA/TCGA-ESCA.clinical.tsv')
+head(phe)
+fpkm = fread('~/workspace/proj_ESCC_STW_ZWM_2022_01/zzc/TCGA/TCGA.ESCA.sampleMap%2FHiSeqV2_PANCAN') %>%
+  as.data.frame()
+rownames(fpkm) = fpkm$sample 
+fpkm$sample = NULL
+phe %>%
+  filter(tissue_type.samples == 'Tumor')  ->use_phe
+fpkm[,colnames(fpkm) %in% gsub("[AB]$", "", use_phe$sample)] -> exprSet
 exprSet %>% rownames_to_column("gene") %>% 
   filter(gene %in%c("GEM",'PDCD1','CD8A'))  %>%
   column_to_rownames("gene") %>% t()  %>%
   as.data.frame()->tmp
 
-tmp$gem  = tmp$GEM/tmp$CD8A
-tmp$pdcd1 = tmp$PDCD1/tmp$CD8A
+tmp$gem_score  = tmp$GEM/tmp$CD8A
+tmp$pdcd1_score = tmp$PDCD1/tmp$CD8A
 
-ggplot(tmp, aes(x=log2(gem), y=log2(pdcd1))) +
+library(ggpubr)
+ggplot(tmp, aes(x=log2(gem_score), y=log2(pdcd1_score))) +
   geom_point(color="#F37F4F",size=4)+ 
   stat_cor(method = "pearson",size=6,vjust=0.5,digits = 2)+
   stat_smooth(method='lm', 
-              color="black", se=TRUE)+labs(title='')+guides(size=FALSE)+
-  theme(legend.title = element_blank(),legend.text = element_text(size=15))+
+              color="black", se=TRUE)+guides(size=FALSE)+
+  labs(x="log2(GEM/CD8A) FPKM", y="log2(PDCD1/CD8A) FPKM",
+       title =  'ESCC bulk-seq data in TCGA')+
+  theme(legend.title = element_blank(),
+        legend.text = element_text(size=15),
+        plot.title = element_text(hjust = 0.5))+
   theme_classic()+
   theme(axis.text = element_text(size=12,colour = "black"),
-        axis.title = element_text(size=15))+
-  labs(x="log2(GEM/CD8A FPKM)", y="log2(PDCD1/CD8A FPKM")
+        axis.title = element_text(size=15))
+
 
 #Supplementary Fig. 13 c -----
 DefaultAssay(sp)<-'spatial'

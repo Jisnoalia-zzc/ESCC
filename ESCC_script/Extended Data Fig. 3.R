@@ -549,3 +549,36 @@ pheatmap::pheatmap(cross_correlation_matrix,scale = 'none',
 dev.off()
 
 #Extended Data Fig 3e -----
+ratio_subtype_sample <- codex2@meta.data %>%
+  group_by(Sample, subCelltype) %>%
+  summarise(count = n()) %>%
+  mutate(Ratio = count / sum(count)) %>%
+  left_join(neighborhoods %>% select(Sample, Tissue) %>% distinct(), by = "Sample")
+
+
+
+p <- ggplot(ratio_subtype_sample ,aes(x=Sample,y = Ratio,fill = subCelltype))+
+  geom_bar(stat = "identity", position = "fill",  width = 0.9
+  ) +
+  # scale_fill_manual(values = subCelltype_cols)+
+  #scale_y_continuous(labels = scales::percent_format()) +
+  #scale_x_discrete(expand = c(0, 0)) +
+  scale_y_continuous(labels = scales::percent_format(), expand = c(0, 0))+
+  #coord_polar()+
+  #theme_minimal()+
+  theme(
+    axis.title = element_blank(),
+    axis.ticks = element_blank(),
+    axis.line.x = element_line(color = "black", size = 0.5),
+    
+    axis.text.y = element_text(size = 10),
+    axis.text.x = element_text(angle = 0, hjust = 0.5, vjust = 0.5, size=10),
+    #plot.title = element_text(hjust = 0.5),
+    legend.position = "right",
+    legend.direction = 'vertical',
+    #panel.grid.major=element_blank(), 
+    #panel.grid.minor=element_blank(), 
+    panel.background = element_blank(),
+    plot.margin = margin(20, 20, 20, 20)
+  ) +
+  guides(fill = guide_legend(ncol = 2))

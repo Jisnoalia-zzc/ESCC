@@ -7,10 +7,12 @@ library(tidyr)
 library(data.table)
 
 setwd('C:/Users/Ron/Desktop/Figs/S8/')
+# 加载数据
 meta_data_1 <- fread('C:/Users/Ron/Desktop/Figs/S8/S8_a_mimer_5types_above_median_split_tissue_filter_ME_dev.metadata_part1.csv')
 meta_data_2 <- fread('C:/Users/Ron/Desktop/Figs/S8/S8_a_mimer_5types_above_median_split_tissue_filter_ME_dev.metadata_part2.csv')
 meta_data <- rbind(meta_data_1,meta_data_2)
 
+# 定义5类细胞类型及其对应的above_median列
 cell_types <- list(
   "CD8_C6_CD39" = "CD8_C6_CD39_above_median",
   "CD4_C7_OX40" = "CD4_C7_OX40_above_median", 
@@ -19,16 +21,28 @@ cell_types <- list(
   "Endo_C3_RGCC" = "Endo_C3_RGCC_above_median"
 )
 
+# 定义分组顺序
 cell_types_order <- c("CD8_C6_CD39", "CD4_C7_OX40", "Mac_C2_SPP1", "FB_C3_COL1A1", "Endo_C3_RGCC")
 cell_order_mimer <- paste0(cell_types_order, "_MIMER")
 cell_order_other <- paste0(cell_types_order, "_other")
 
-cell_type_colors <- c( "CD8_C6_CD39" = "#E31A1C", "CD4_C7_OX40" = "#1F78B4", "Mac_C2_SPP1" = "#33A02C", "FB_C3_COL1A1" = "#6A3D9A", "Endo_C3_RGCC" = "#FF7F00" )
+# 定义颜色方案
+cell_type_colors <- c(
+  "CD8_C6_CD39" = "#E31A1C",  # 红色
+  "CD4_C7_OX40" = "#1F78B4",  # 蓝色
+  "Mac_C2_SPP1" = "#33A02C",  # 绿色
+  "FB_C3_COL1A1" = "#6A3D9A",  # 紫色
+  "Endo_C3_RGCC" = "#FF7F00"   # 橙色
+)
 
-group_colors <- c(  "MIMER" = "#bd2628",  "other" = "#cccccc" )
+group_colors <- c(
+  "MIMER" = "#bd2628",  # 红色
+  "other" = "#cccccc"   # 灰色
+)
 
-# 1. 
+# 1. 计算热图矩阵的函数
 calculate_heatmap_matrix <- function(filter_col) {
+  # 创建5类细胞类型的热图矩阵
   cell_type_groups <- list()
   
   for(cell_name in names(cell_types)) {
@@ -56,6 +70,7 @@ calculate_heatmap_matrix <- function(filter_col) {
   heatmap_matrix <- as.matrix(combined_cell_data[, -1])
   rownames(heatmap_matrix) <- combined_cell_data$group
   
+  # 按分组顺序重新排列行
   cell_order <- c(cell_order_mimer, cell_order_other)
   cell_order <- cell_order[cell_order %in% rownames(heatmap_matrix)]
   heatmap_matrix <- heatmap_matrix[cell_order, ]
@@ -63,33 +78,41 @@ calculate_heatmap_matrix <- function(filter_col) {
   return(heatmap_matrix)
 }
 
-# 2. 
+# 2. 计算两个矩阵
 me_matrix <- calculate_heatmap_matrix("ME")
 dev_matrix <- calculate_heatmap_matrix("development")
 
-# 3. 
+# 3. 基于ME数据计算signature的顺序
+# 对ME矩阵的列（signature）进行聚类
 signature_hclust <- hclust(dist(t(me_matrix)))
 signature_order <- colnames(me_matrix)[signature_hclust$order]
 
-# 4. 
+# 4. 计算全局最大最小值
 global_min <- min(min(me_matrix, na.rm = TRUE), min(dev_matrix, na.rm = TRUE))
 global_max <- max(max(me_matrix, na.rm = TRUE), max(dev_matrix, na.rm = TRUE))
 
-# 5. 
+# 5. 设置统一的颜色方案（以0为中点）
 getPalette = colorRampPalette(rev(brewer.pal(9, "RdBu")))
-colors = getPalette(100)
+colors = getPalette(100)  # 100个颜色
 
+# 创建以0为中心的breakpoints序列
 if(global_min < 0 && global_max > 0) {
+  # 如果最小值小于0且最大值大于0，将范围分成两段
+  # 从最小值到0分成50份
   bk1 <- seq(global_min, 0, length.out = 50)
-  bk2 <- seq(0, global_max, length.out = 51)
+  # 从0到最大值分成50份
+  bk2 <- seq(0, global_max, length.out = 51)  # 从0开始，避免重复0
+  # 合并，去掉一个0
   bk <- c(bk1, bk2[-1])
 } else if(global_min >= 0) {
+  # 如果最小值大于等于0，所有值都非负
   bk <- seq(global_min, global_max, length.out = 101)
 } else if(global_max <= 0) {
+  # 如果最大值小于等于0，所有值都非正
   bk <- seq(global_min, global_max, length.out = 101)
 }
 
-# 6. 
+# 6. 创建行注释的函数
 create_row_annotation <- function(heatmap_matrix) {
   cell_type_labels <- sub("_(MIMER|other)$", "", rownames(heatmap_matrix))
   group_labels <- ifelse(grepl("_MIMER$", rownames(heatmap_matrix)), "MIMER", "other")
@@ -103,64 +126,79 @@ create_row_annotation <- function(heatmap_matrix) {
   return(row_annotation)
 }
 
-# 7. 
+# 7. 绘制热图的函数
 plot_heatmap <- function(heatmap_matrix, output_filename, plot_title, row_annotation) {
+  # 按signature顺序重新排列矩阵的列
   available_signatures <- colnames(heatmap_matrix)
   signature_order_filtered <- signature_order[signature_order %in% available_signatures]
   
+  # 如果signature_order_filtered不包含所有可用的signature，添加缺失的
   missing_signatures <- setdiff(available_signatures, signature_order_filtered)
   if(length(missing_signatures) > 0) {
     signature_order_filtered <- c(signature_order_filtered, missing_signatures)
   }
   
+  # 按顺序重新排列矩阵的列
   heatmap_matrix_ordered <- heatmap_matrix[, signature_order_filtered, drop = FALSE]
   
+  # 设置绘图尺寸
   options(repr.plot.width = 10, repr.plot.height = 14)
+  
+  # 绘制热图
   pheatmap(t(heatmap_matrix_ordered),
            filename = output_filename,
            annotation_col = row_annotation,
            main = plot_title,
+           
+           # 颜色与图例
            color = colors,
            border_color = NA,
-           breaks = bk,
-           cluster_rows = FALSE,
-           cluster_cols = FALSE,
+           breaks = bk,  # 使用以0为中心的breakpoints
+           
+           # 聚类与树状图
+           cluster_rows = FALSE,  # 不聚类行
+           cluster_cols = FALSE,  # 不聚类列
            treeheight_row = 0,
            treeheight_col = 0,
            
+           # 单元格与字体
            cellwidth = 25,
            cellheight = 20,
            fontsize_row = 10,
            fontsize_col = 12,
            angle_col = 45,
            
+           # 图例与标签
            show_rownames = TRUE,
            show_colnames = TRUE,
            
+           # 添加颜色区分
            annotation_colors = list(
              Cell_Type = cell_type_colors,
              Group = group_colors
            ),
            
-           annotation_names_col = TRUE  )
+           # 确保注释颜色正确显示
+           annotation_names_col = TRUE
+  )
   
   cat("已生成热图，保存为:", output_filename, "\n")
 }
 
-# 8. 
+# 8. 分别绘制两个热图
+# 绘制ME热图
 me_row_annotation <- create_row_annotation(me_matrix)
 plot_heatmap(me_matrix, 
              'cell_type_MIMER_vs_other_comparison_ME.pdf',
              "Signature Scores: MIMER vs Other (by cell type in ME)",
              me_row_annotation)
 
-# 
+# 绘制development热图
 dev_row_annotation <- create_row_annotation(dev_matrix)
 plot_heatmap(dev_matrix,
              'cell_type_MIMER_vs_other_comparison_epitu.pdf',
              "Signature Scores: MIMER vs Other (by cell type in Epi/Tumor)",
              dev_row_annotation)
-
 
 
 ## S8b
@@ -627,3 +665,118 @@ saveRDS(paired_stats, file.path(output_dir, "paired_stats.rds"))
 message("Refactored pipeline completed.")
 message("Excel: ", xlsx_path)
 
+###### S8 c& S8d ######
+hallmark_paths = c("HALLMARK_ANGIOGENESIS",'HALLMARK_EPITHELIAL_MESENCHYMAL_TRANSITION',
+                   'HALLMARK_KRAS_SIGNALING_UP','HALLMARK_TGF_BETA_SIGNALING',
+                   'HALLMARK_MYOGENESIS','HALLMARK_TNFA_SIGNALING_VIA_NFKB',
+                   'HALLMARK_PANCREAS_BETA_CELLS','HALLMARK_COAGULATION')
+hallmark_list = lapply(hallmark_paths, function(path){
+  ggplot(plot_df,aes(x=min,y=plot_df[[path]] ,color=Cancer) )+
+    geom_point_rast(size=0.05) +
+    scale_color_distiller(palette = "Spectral")+
+    stat_cor(size = 2)+
+    geom_smooth(
+      color = "#756bb1", fill = "#cbc9e2",
+      span=0.3,size=0.1)+
+    facet_grid(~development)+
+    labs(y=path,x="Distance to Mimer (Spot)")+theme_classic() +
+    theme(
+      legend.key.size = unit(2, "mm"),
+      panel.spacing = unit(1, "mm") ,
+      axis.line = element_line(size = 0.2),
+      axis.ticks = element_line(size = 0.2),
+      text = element_text(size = 5),  
+      axis.text = element_text(size = 6),
+      legend.text = element_text(size = 5),
+      strip.text.x = element_text(size = 6),
+      strip.background = element_rect(size = 0.2)
+      
+    )->p1
+  return(p1)
+})
+names(hallmark_list) = hallmark_paths
+
+library(patchwork)
+wrap_plots(hallmark_list,ncol = 1)->p
+
+p
+
+###### S8d ######
+plot_df$ME = factor(plot_df$ME,
+                    levels =  c('NOR-ME','BCH-ME','mD-ME','MD-ME','SD&CIS-ME','ICA-ME','MCA-ME'))
+hallmark_paths = c("pro_fibrotic_signature",'ECM',
+                   'Anti_inflammatory','Immunosuppression',
+                   'pro_metastasis',"pro_fibrotic_signature",
+                   'ECM','Anti_inflammatory')
+hallmark_list = lapply(hallmark_paths, function(path){
+  ggplot(plot_df,aes(x=min,y=plot_df[[path]] ,color=plot_df[[path]] ) )+
+    geom_point_rast(size=0.1) +
+    scale_color_distiller(palette = "Spectral")+
+    stat_cor(size = 2)+
+    geom_smooth(
+      color = "#756bb1", fill = "#cbc9e2",size=0.1,
+      span=0.3)+
+    facet_grid(~ME)+
+    labs(y=path,x="Distance to Mimer (Spot)")+theme_classic() +
+    theme(
+      legend.key.size = unit(2, "mm"),
+      panel.spacing = unit(1, "mm") ,
+      axis.line = element_line(size = 0.2),
+      axis.ticks = element_line(size = 0.2),
+      text = element_text(size = 5), 
+      axis.text = element_text(size = 6),
+      legend.text = element_text(size = 5),
+      strip.text.x = element_text(size = 6),
+      strip.background = element_rect(size = 0.2)
+      
+    )->p1
+  p1[["labels"]][["colour"]] = path
+  return(p1)
+})
+names(hallmark_list) = hallmark_paths
+wrap_plots(hallmark_list,ncol = 1)->p
+p
+
+##### S8e #####
+for (i in cols) {
+  tmp_ICA = subset(tmp_development,development=='ICA')
+  ggplot(tmp_ICA,aes(x=min,y= tmp_ICA[[i]] ,color=type) )+
+    geom_point_rast() +
+    scale_color_manual(values = cols_mimer )+
+    stat_cor(show.legend = FALSE)+
+    geom_smooth(span=0.3)+
+    facet_grid(~development)+
+    labs(y=gsub('HALLMARK_','',colnames(tmp_ICA)[i]),x="Distance to MIMER Spot")+
+    theme_bw()+
+    theme(panel.background = element_blank(),
+          panel.grid = element_blank(),
+          strip.background = element_rect(fill = "white"),
+          strip.text = element_text(
+            size = 12,
+            margin = margin(5, 5, 5, 5) 
+          )
+    ) +xlim(0,157)-> p0
+  print(p0)
+}
+
+##### S8f #####
+for (i in cols) {
+  tmp_ICA = subset(tmp_ME,ME=='ICA-ME')
+  ggplot(tmp_ICA,aes(x=min,y= tmp_ICA[[i]] ,color=type) )+
+    geom_point_rast() +
+    scale_color_manual(values = cols_mimer )+
+    stat_cor(show.legend = FALSE)+
+    geom_smooth(span=0.3)+
+    facet_grid(~ME)+
+    labs(y=gsub('HALLMARK_','',colnames(tmp_ICA)[i]),x="Distance to MIMER Spot")+
+    theme_bw()+
+    theme(panel.background = element_blank(),
+          panel.grid = element_blank(),
+          strip.background = element_rect(fill = "white"),
+          strip.text = element_text(
+            size = 12,
+            margin = margin(5, 5, 5, 5) # 边距
+          )
+    ) +xlim(0,157)-> p0
+  print(p0)
+}

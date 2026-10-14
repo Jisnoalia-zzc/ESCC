@@ -1,5 +1,84 @@
 #Figure 2a -----
+development %>%
+  group_by(file,development,cc_15) %>% 
+  summarise(number = n()) %>%
+  ungroup() %>% 
+  group_by(file,development) %>%
+  mutate(sum = sum(number),
+         ratio = number/sum) -> dev_cc_ratio
+# dev_cc_ratio %>% left_join(total_number,by = "file") %>%
+#   mutate(normalize_ratio = ratio/total) -> dev_cc_ratio
 
+dev_cc_ratio$development = factor(dev_cc_ratio$development,
+                                  levels =  c('Nor','Hyp','MiD','MoD','SD&CA','ICA','MCA'))
+# library(gg)
+
+dev_cc_ratio$cc_15 = factor(dev_cc_ratio$cc_15,
+                            levels = paste0("CC",1:15))
+compare_list = list(
+  c("Nor" ,"Hyp"),
+  c("Hyp", "MiD"),
+  c("MiD" ,"MoD"),
+  c("MoD"  , "SD&CA"),
+  c("SD&CA" ,"ICA"),  
+  c("ICA" ,"MCA")
+)
+
+
+my_vector = levels(dev_cc_ratio$development)
+result_list = list()
+for (i in 1:(length(my_vector) - 1)) {
+  pair <- my_vector[i:(i + 1)]
+  result_list <- c(result_list, list(pair)) 
+}
+result_list
+tissue_cols = c("Nor" =  "#1B9E77" ,
+                "Hyp"  = "#D95F02" ,
+                "MiD" = "#666666" ,
+                "MoD" = "#E7298A" ,
+                "SD&CA" = "#66A61E",
+                "ICA" = "#E6AB02" ,
+                "MCA" = "#A6761D")
+library(ggpubr)
+
+
+pdf(file  = "cc_ratio_in_development_boxplot2.pdf",width = 12,height = 12)
+dev_cc_ratio %>%
+  filter(cc_15 %in% c('CC3',"CC5",'CC9','CC10',"CC11","CC12")) %>%
+  ggplot(.,aes(x=development,y=ratio,color= development))+
+  # geom_jitter_rast()+
+  geom_boxplot()+
+  stat_compare_means(comparisons = result_list,show.legend = F,
+                     label.y = 0.75,step.increase = 0.1)+
+  scale_color_manual(values = tissue_cols)+
+  facet_wrap(~cc_15,ncol=6)+
+  theme_classic()+
+  theme(axis.text.x = element_text(angle=45,color = "black",
+                                   # vjust = 0.5,
+                                   hjust = 1,
+                                   size = 12),
+        axis.text.y = element_text(color = "black"))+
+  labs(y = 'The ratio of CC in development region',x = 'Development')
+
+dev_cc_ratio %>%
+  filter(cc_15 %in% c('CC3',"CC5",'CC9','CC10',"CC11","CC12")) -> cc_ratio_in_dev
+
+dev_cc_ratio %>%
+  ggplot(.,aes(x=development,y=ratio,color= development))+
+  # geom_jitter_rast()+
+  geom_boxplot()+
+  stat_compare_means(comparisons = result_list[1:5],show.legend = F,
+                     label.y = 0.75,step.increase = 0.1)+
+  scale_color_manual(values = tissue_cols)+
+  facet_wrap(~cc_15,ncol=5)+
+  theme_classic()+
+  theme(axis.text.x = element_text(angle=45,color = "black",
+                                   # vjust = 0.5,
+                                   hjust = 1,
+                                   size = 12),
+        axis.text.y = element_text(color = "black"))+
+  labs(y = 'The ratio of CC in development region',x = 'Development')
+dev.off()
 
 #Figure 2c -----
 DefaultAssay(sp) = "rctd_full"

@@ -1164,6 +1164,47 @@ for (this_super in unique(plot_df$mimer_supertype)) {
     height = 6.5
   )
 }
+# Figure 4H -----
+#ICA-development                                   
+tmp_ICA = subset(tmp_development,development=='ICA-ME')
+only = 'Mimer'
+    tmp_df = subset(tmp_ICA,type == only)
+    ggplot(tmp_df,aes(x=min,y= tmp_df[[i]] ) )+
+      geom_point(aes(color=tmp_df[[i]]))+
+      stat_cor(show.legend = F,color =cols_mimer_sel[only] )+
+      geom_smooth(
+        # # method = "loess",
+        # # formula = y~x,
+        # # level = 0.99,
+        spam=0.3
+      )+
+      scale_color_gradient(low = "grey", high = cols_mimer_sel[only] ) +
+      labs(y=paste0(str_to_title(gsub('HALLMARK_','',
+                                      colnames(tmp_df)[i])), '(' ,only,')'),
+           color = str_to_title(gsub('HALLMARK_','',colnames(tmp_df)[i])),
+           x="Distance to Spot")+
+      theme_classic() +
+      xlim(0,169) 
+#ICA-ME                                   
+tmp_ICA = subset(tmp_ME,ME=='ICA-ME')
+only = 'Mimer'
+    tmp_df = subset(tmp_ICA,type == only)
+    ggplot(tmp_df,aes(x=min,y= tmp_df[[i]] ) )+
+      geom_point(aes(color=tmp_df[[i]]))+
+      stat_cor(show.legend = F,color =cols_mimer_sel[only] )+
+      geom_smooth(
+        # # method = "loess",
+        # # formula = y~x,
+        # # level = 0.99,
+        spam=0.3
+      )+
+      scale_color_gradient(low = "grey", high = cols_mimer_sel[only] ) +
+      labs(y=paste0(str_to_title(gsub('HALLMARK_','',
+                                      colnames(tmp_df)[i])), '(' ,only,')'),
+           color = str_to_title(gsub('HALLMARK_','',colnames(tmp_df)[i])),
+           x="Distance to Spot")+
+      theme_classic() +
+      xlim(0,169) 
 
 # Figure 4l -----
 codex2 = codex

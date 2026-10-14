@@ -1165,46 +1165,50 @@ for (this_super in unique(plot_df$mimer_supertype)) {
   )
 }
 # Figure 4H -----
-#ICA-development                                   
-tmp_ICA = subset(tmp_development,development=='ICA-ME')
-only = 'Mimer'
-    tmp_df = subset(tmp_ICA,type == only)
-    ggplot(tmp_df,aes(x=min,y= tmp_df[[i]] ) )+
-      geom_point(aes(color=tmp_df[[i]]))+
-      stat_cor(show.legend = F,color =cols_mimer_sel[only] )+
-      geom_smooth(
-        # # method = "loess",
-        # # formula = y~x,
-        # # level = 0.99,
-        spam=0.3
-      )+
-      scale_color_gradient(low = "grey", high = cols_mimer_sel[only] ) +
-      labs(y=paste0(str_to_title(gsub('HALLMARK_','',
-                                      colnames(tmp_df)[i])), '(' ,only,')'),
-           color = str_to_title(gsub('HALLMARK_','',colnames(tmp_df)[i])),
-           x="Distance to Spot")+
-      theme_classic() +
-      xlim(0,169) 
-#ICA-ME                                   
+                                   
+#ICA-development   
+tmp_ICA = subset(tmp_development,development=='ICA')
+  ggplot(tmp_ICA,aes(x=min,y= tmp_ICA[[i]] ,color=type) )+
+    geom_point_rast() +
+    scale_color_manual(values = cols_mimer )+
+    stat_cor(show.legend = FALSE)+
+    geom_smooth(
+      # method = "lm", formula = y~x,
+                span=0.3)+
+    labs(y=colnames(tmp_ICA)[i],x="Distance to MIMER Spot")+
+    theme_bw()+
+    theme(panel.background = element_blank(),
+          panel.grid = element_blank(),
+          strip.background = element_rect(fill = "white"),
+          strip.text = element_text(
+            # family = "serif",          # 字体家族
+            # face = "bold",             # 字体样式
+            size = 12,                 # 字体大小
+            # color = "darkred",         # 字体颜色
+            margin = margin(5, 5, 5, 5) # 边距
+          )
+    ) + xlim(0,169)                                    
 tmp_ICA = subset(tmp_ME,ME=='ICA-ME')
-only = 'Mimer'
-    tmp_df = subset(tmp_ICA,type == only)
-    ggplot(tmp_df,aes(x=min,y= tmp_df[[i]] ) )+
-      geom_point(aes(color=tmp_df[[i]]))+
-      stat_cor(show.legend = F,color =cols_mimer_sel[only] )+
-      geom_smooth(
-        # # method = "loess",
-        # # formula = y~x,
-        # # level = 0.99,
-        spam=0.3
-      )+
-      scale_color_gradient(low = "grey", high = cols_mimer_sel[only] ) +
-      labs(y=paste0(str_to_title(gsub('HALLMARK_','',
-                                      colnames(tmp_df)[i])), '(' ,only,')'),
-           color = str_to_title(gsub('HALLMARK_','',colnames(tmp_df)[i])),
-           x="Distance to Spot")+
-      theme_classic() +
-      xlim(0,169) 
+  ggplot(tmp_ICA,aes(x=min,y= tmp_ICA[[i]] ,color=type) )+
+    geom_point_rast() +
+    scale_color_manual(values = cols_mimer )+
+    stat_cor(show.legend = FALSE)+
+    geom_smooth(
+      # method = "lm", formula = y~x,
+                span=0.3)+
+    labs(y=colnames(tmp_ICA)[i],x="Distance to MIMER Spot")+
+    theme_bw()+
+    theme(panel.background = element_blank(),
+          panel.grid = element_blank(),
+          strip.background = element_rect(fill = "white"),
+          strip.text = element_text(
+            # family = "serif",          # 字体家族
+            # face = "bold",             # 字体样式
+            size = 12,                 # 字体大小
+            # color = "darkred",         # 字体颜色
+            margin = margin(5, 5, 5, 5) # 边距
+          )
+    ) + xlim(0,169) 
 
 # Figure 4l -----
 codex2 = codex

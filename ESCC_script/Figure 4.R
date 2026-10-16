@@ -658,33 +658,45 @@ plot_mimer_combined <- function(results) {
 p_final <- plot_mimer_combined(final_results)
 ggplot2::ggsave("MIMER_Enrichment_Combined.pdf", p_final, width = 40, height = 40)
 
-# Fig 4F
-# 
+
+# 加载必要的包
 library(ggplot2)
 library(scales)
 library(data.table)
 library(dplyr)
-library(tidyr)
+library(tidyr)  # 用于数据重塑
 
-# 
-analysis_type <- "development" 
+mimer_cor_development_ME <- fread('F4f_mimer_cor_development_ME.csv')
 
-# 
+# 设置分析类型：'development' 或 'ME'
+analysis_type <- "development"  # 可更改为 "development" 或 "ME"
+
+# 设置数据表为data.table格式
+setDT(mimer_cor_development_ME)
+
+# 1. 检查原始development和ME列的取值
+cat("原始development列的取值分布:\n")
+print(table(mimer_cor_development_ME$development))
+
+cat("\n原始ME列的取值分布:\n")
+print(table(mimer_cor_development_ME$ME))
+
+# 根据分析类型处理数据
 if (analysis_type == "ME") {
-  
+  # 使用ME列
   type_col <- "ME"
   all_types <- c("Nor-ME", "Hyp-ME", "MiD-ME", "MoD-ME", "SD&CA-ME", "ICA-ME", "MCA-ME")
-  
+  # 定义Nor组
   nor_group <- "Nor-ME"
 } else {
- 
+  # 使用development列
   type_col <- "development"
   all_types <- c("Nor", "Hyp", "MiD", "MoD", "SD&CA", "ICA", "MCA")
-  
+  # 定义Nor组
   nor_group <- "Nor"
 }
 
-# 
+# 过滤掉unknown和MCA类型
 filtered_types <- all_types[!all_types %in% c("unknown", 
                                               ifelse(analysis_type == "ME", "MCA-ME", "MCA"))]
 cat(sprintf("\n分析类型: %s\n", analysis_type))
@@ -692,39 +704,48 @@ cat(sprintf("使用的列: %s\n", type_col))
 cat("过滤后的类型顺序:\n")
 print(filtered_types)
 
-# 
+# 检查当前使用列的取值分布
+cat(sprintf("\n%s列的取值分布:\n", type_col))
+print(table(mimer_cor_development_ME[[type_col]]))
+
+# 定义要使用的阈值类型
 thresholds <- c("top5_perc_mimer", "top10_perc_mimer", "top20_perc_mimer")
 threshold_names <- c("Top 5%", "Top 10%", "Top 20%")
 threshold_colors <- c(
-  "Top 5%" = "#FF7F0E",  
-  "Top 10%" = "#3fa02c",
-  "Top 20%" = "#1F77B4" )
+  "Top 5%" = "#FF7F0E",    # 橙色
+  "Top 10%" = "#3fa02c",   # 绿色
+  "Top 20%" = "#1F77B4"    # 蓝色
+)
 
-# 
+# 初始化存储结果
 all_threshold_stats <- list()
-comparison_results <- list()
+comparison_results <- list()  # 存储比较结果
 
-# 
-base_data <- fread('C:/Users/Ron/Desktop/Figs/F4/Development_ME_dashdot_base_data.csv')
+# 首先，计算每个样本每个类型的总细胞数（不依赖于阈值）
+# 这里我们计算每个类型实际在哪些文件中出现
+cat("\n计算每个类型实际在哪些文件中出现...\n")
 
-# 
+# 过滤掉unknown和MCA类型的数据
+base_data <- mimer_cor_development_ME[get(type_col) %in% filtered_types]
+
+# 计算每个样本每个类型的总细胞数
 type_total_counts <- base_data[, 
-                               .(total_cells = .N), 
-                               by = .(file, get(type_col))
+  .(total_cells = .N), 
+  by = .(file, get(type_col))
 ]
 setnames(type_total_counts, "get", "type")
 
-# 
+# 设置类型为因子
 type_total_counts$type <- factor(type_total_counts$type, levels = filtered_types)
 
-# 
+# 计算每个类型实际出现在哪些文件中
 type_files <- base_data[, 
-                        .(files = unique(file)), 
-                        by = get(type_col)
+  .(files = unique(file)), 
+  by = get(type_col)
 ]
 setnames(type_files, "get", "type")
 
-# 
+# 计算每个类型的文件数（样本数）
 type_n_files <- type_files[, .(n_files = .N), by = type]
 type_n_files$type <- factor(type_n_files$type, levels = filtered_types)
 type_n_files <- type_n_files[order(type)]
@@ -732,7 +753,7 @@ type_n_files <- type_n_files[order(type)]
 cat("\n每个类型出现在多少个文件中:\n")
 print(type_n_files)
 
-# 
+# 创建带样本数的x轴标签
 x_labels <- sapply(filtered_types, function(t) {
   n_files <- type_n_files[type == t, n_files]
   if (length(n_files) > 0 && n_files > 0) {
@@ -742,43 +763,43 @@ x_labels <- sapply(filtered_types, function(t) {
   }
 })
 
-# 
+# 循环处理每个阈值
 for (i in seq_along(thresholds)) {
   threshold <- thresholds[i]
   threshold_name <- threshold_names[i]
   
   cat(sprintf("\n处理阈值: %s\n", threshold_name))
   
-  # 
-  threshold_data <- base_data[get(type_col) %in% filtered_types]
+  # 过滤掉unknown和MCA类型的数据
+  threshold_data <- mimer_cor_development_ME[get(type_col) %in% filtered_types]
   threshold_data[, mimer_status := get(threshold)]
-  # 
+  # 添加类型列
   threshold_data[, type := get(type_col)]
   threshold_data$type <- factor(threshold_data$type, levels = filtered_types)
   
-  #
+  # 对于每个类型，只使用包含该类型的文件
   sample_stats_list <- list()
   
   for (current_type in filtered_types) {
-    # 
+    # 获取包含当前类型的所有文件
     files_with_type <- unique(threshold_data[type == current_type, file])
     
     if (length(files_with_type) > 0) {
-      #
+      # 对于每个包含当前类型的文件，计算MIMER比例
       for (current_file in files_with_type) {
-        # 
+        # 获取该文件当前类型的所有细胞
         type_cells <- threshold_data[file == current_file & type == current_type]
         
-        # 
+        # 计算MIMER细胞数
         mimer_cells <- sum(type_cells$mimer_status == "MIMER", na.rm = TRUE)
         
-        # 
+        # 计算总细胞数
         total_cells <- nrow(type_cells)
         
-        # 
+        # 计算比例
         prop <- ifelse(total_cells > 0, mimer_cells / total_cells, 0)
         
-        # 
+        # 保存结果
         sample_stats_list[[paste(current_type, current_file, sep="_")]] <- data.frame(
           file = current_file,
           type = current_type,
@@ -793,7 +814,7 @@ for (i in seq_along(thresholds)) {
     }
   }
   
-  # 
+  # 合并所有结果
   if (length(sample_stats_list) > 0) {
     sample_stats <- rbindlist(sample_stats_list)
   } else {
@@ -807,21 +828,21 @@ for (i in seq_along(thresholds)) {
     )
   }
   
-  # 
+  # 设置类型为因子
   sample_stats$type <- factor(sample_stats$type, levels = filtered_types)
   
-  #
+  # 计算每个类型的统计量
   mean_stats <- sample_stats[, 
-                             .(mean_prop = mean(prop, na.rm = TRUE),
-                               se_prop = sd(prop, na.rm = TRUE) / sqrt(.N),
-                               median_prop = median(prop, na.rm = TRUE),
-                               sd_prop = sd(prop, na.rm = TRUE),
-                               n_samples = .N,
-                               n_nonzero = sum(prop > 0)), 
-                             by = type
+    .(mean_prop = mean(prop, na.rm = TRUE),
+      se_prop = sd(prop, na.rm = TRUE) / sqrt(.N),
+      median_prop = median(prop, na.rm = TRUE),
+      sd_prop = sd(prop, na.rm = TRUE),
+      n_samples = .N,
+      n_nonzero = sum(prop > 0)), 
+    by = type
   ]
   
-  # 
+  # 对于没有数据的类型，添加0行
   missing_types <- setdiff(filtered_types, mean_stats$type)
   if (length(missing_types) > 0) {
     for (mt in missing_types) {
@@ -840,40 +861,41 @@ for (i in seq_along(thresholds)) {
     }
   }
   
-  # 
+  # 添加零值百分比
   mean_stats[, zero_percent := ifelse(n_samples > 0, 
                                       round((n_samples - n_nonzero) / n_samples * 100, 1), 
                                       0)]
   mean_stats[, threshold := threshold_name]
   
-  # 
+  # 确保类型顺序
   mean_stats$type <- factor(mean_stats$type, levels = filtered_types)
   mean_stats <- mean_stats[order(type)]
   
-  # 
+  # 存储结果
   all_threshold_stats[[threshold_name]] <- list(
     prop_data = sample_stats,
     mean_stats = mean_stats
   )
   
-  # 
+  # 进行Wilcoxon检验 - 所有组与Nor组比较
+  # 提取Nor组数据
   nor_data <- sample_stats[type == nor_group, prop]
   n_nor <- length(nor_data)
   cat(sprintf("  Nor组样本数: %d\n", n_nor))
   
-  # 
+  # 为每个非Nor组进行检验
   comparison_results[[threshold_name]] <- list()
   
   for (current_type in filtered_types[filtered_types != nor_group]) {
-   
+    # 提取当前组数据
     current_data <- sample_stats[type == current_type, prop]
     n_current <- length(current_data)
     
     cat(sprintf("  %s样本数: %d\n", current_type, n_current))
     
-    #
+    # 与Nor组比较
     if (n_nor >= 2 && n_current >= 2) {
-      
+      # 进行Wilcoxon检验
       test_result <- wilcox.test(current_data, nor_data, exact = FALSE)
       p_value <- test_result$p.value
     } else {
@@ -881,7 +903,7 @@ for (i in seq_along(thresholds)) {
       cat(sprintf("  警告: %s vs Nor比较样本不足，至少需要每组2个样本\n", current_type))
     }
     
-    # 
+    # 存储比较结果
     comparison_results[[threshold_name]][[current_type]] <- list(
       p.value = p_value,
       n_current = n_current,
@@ -892,51 +914,51 @@ for (i in seq_along(thresholds)) {
                 ifelse(is.na(p_value), NA, p_value)))
   }
   
-  # 
+  # 输出每个类型的样本数
   cat("  每个类型的样本数（文件数）:\n")
   print(mean_stats[, .(type, n_samples)][order(factor(type, levels = filtered_types))])
 }
 
-# 
+# 合并所有阈值的数据
 all_prop_data <- rbindlist(lapply(all_threshold_stats, function(x) x$prop_data))
 all_mean_stats <- rbindlist(lapply(all_threshold_stats, function(x) x$mean_stats))
 
-# 
+# 将threshold转换为因子，确保正确的顺序
 all_mean_stats$threshold <- factor(all_mean_stats$threshold, levels = threshold_names)
 if (nrow(all_prop_data) > 0) {
   all_prop_data$threshold <- factor(all_prop_data$threshold, levels = threshold_names)
 }
 
-# 
+# 确保类型顺序
 all_mean_stats$type <- factor(all_mean_stats$type, levels = filtered_types)
 if (nrow(all_prop_data) > 0) {
   all_prop_data$type <- factor(all_prop_data$type, levels = filtered_types)
 }
 
-# 
+# 准备比较结果的标注数据
 annotation_data_list <- list()
 
 for (thresh in threshold_names) {
   p_values <- comparison_results[[thresh]]
   
-  # 
+  # 为每个非Nor组创建标注数据
   for (current_type in filtered_types[filtered_types != nor_group]) {
     if (!is.null(p_values[[current_type]]) && !is.na(p_values[[current_type]]$p.value)) {
-      # 
+      # 获取当前阈值和类型下的统计信息
       type_stats <- all_mean_stats[threshold == thresh & type == current_type]
       
       if (nrow(type_stats) > 0) {
-        # 
+        # 获取均值
         mean_prop <- type_stats$mean_prop
         se_prop <- type_stats$se_prop
         
-        # 
+        # 获取p值
         p_value <- p_values[[current_type]]$p.value
         
-        # 
+        # 计算x位置（类型的索引）
         x_pos <- which(filtered_types == current_type)
         
-        # 
+        # 创建标注数据
         annotation_data_list[[paste(thresh, current_type, sep="_")]] <- data.frame(
           threshold = thresh,
           type = current_type,
@@ -950,7 +972,7 @@ for (thresh in threshold_names) {
   }
 }
 
-# 
+# 合并所有标注数据
 if (length(annotation_data_list) > 0) {
   annotation_data <- rbindlist(annotation_data_list)
 } else {
@@ -964,43 +986,43 @@ if (length(annotation_data_list) > 0) {
   )
 }
 
-# 
+# 格式化为保留2位有效数字的p值
 format_p_value <- function(p) {
   if (p < 0.0001) {
-    #
+    # 对于非常小的p值，使用科学计数法
     formatC(p, format = "e", digits = 2)
   } else if (p < 0.001) {
-    # 
+    # 对于小于0.001的p值，显示4位小数
     format(round(p, 4), nsmall = 4, scientific = FALSE)
   } else if (p < 0.01) {
-    # 
+    # 对于小于0.01的p值，显示3位小数
     format(round(p, 3), nsmall = 3, scientific = FALSE)
   } else if (p < 0.1) {
-    # 
+    # 对于小于0.1的p值，显示2位小数
     format(round(p, 2), nsmall = 2, scientific = FALSE)
   } else {
-    # 
+    # 对于较大的p值，显示2位小数
     format(round(p, 2), nsmall = 2, scientific = FALSE)
   }
 }
 
-# 
+# 添加显著性标注和格式化后的p值标签
 if (nrow(annotation_data) > 0) {
   annotation_data[, significance := ifelse(p_value < 0.001, "***",
                                            ifelse(p_value < 0.01, "**",
                                                   ifelse(p_value < 0.05, "*", "ns")))]
-  # 
+  # 创建标签，包含格式化后的p值和显著性标注
   annotation_data[, formatted_p := sapply(p_value, format_p_value)]
   annotation_data[, label := paste0("p=", formatted_p, " ", significance)]
   
-  # 
+  # 将threshold转换为因子
   annotation_data$threshold <- factor(annotation_data$threshold, levels = threshold_names)
   
-  # 
+  # 将type转换为因子
   annotation_data$type <- factor(annotation_data$type, levels = filtered_types)
 }
 
-# 
+# 设置图表标题
 if (analysis_type == "ME") {
   chart_title <- "MIMER+ Spot Proportion Across ME Types"
   x_label <- "ME Type"
@@ -1009,20 +1031,20 @@ if (analysis_type == "ME") {
   x_label <- "Epi/Cancer Type"
 }
 
-# 
+# 计算y轴上限
 y_max <- max(all_mean_stats$mean_prop + all_mean_stats$se_prop, na.rm = TRUE) * 1.3
-# 
+# 确保y轴有足够的空间显示标注
 if (nrow(annotation_data) > 0) {
   y_max <- max(y_max, max(annotation_data$mean_prop + annotation_data$se_prop) * 1.3)
 }
 
-# 
+# 创建主图
 p_main <- ggplot(all_mean_stats, aes(x = type, y = mean_prop, group = threshold, color = threshold)) +
-  
+  # 添加均值点
   geom_point(size = 3, position = position_dodge(width = 0.3)) +
-
+  # 添加连接线
   geom_line(linewidth = 1, position = position_dodge(width = 0.3)) +
- 
+  # 添加误差棒
   geom_errorbar(
     aes(ymin = mean_prop - se_prop, ymax = mean_prop + se_prop),
     width = 0.2,
@@ -1030,22 +1052,22 @@ p_main <- ggplot(all_mean_stats, aes(x = type, y = mean_prop, group = threshold,
     position = position_dodge(width = 0.3)
   )
 
-# 
+# 只在有显著结果时添加显著性标记
 if (nrow(annotation_data) > 0) {
- 
+  # 计算dodge位置
   dodge_width <- 0.3
   n_thresholds <- length(threshold_names)
   
-  #
+  # 创建偏移位置
   offsets <- seq(from = -dodge_width*(n_thresholds-1)/2, 
                  to = dodge_width*(n_thresholds-1)/2, 
                  length.out = n_thresholds)
   
-  # 
+  # 合并dodge偏移
   annotation_data[, dodge_offset := offsets[as.numeric(factor(threshold, levels = threshold_names))]]
   annotation_data[, x_dodged := as.numeric(type) + dodge_offset]
   
-  # 
+  # 计算y位置（在均值+标准误的上方再加一些空间）
   annotation_data[, y_pos := mean_prop + se_prop + 0.01 * y_max]
   
   p_main <- p_main + 
@@ -1058,18 +1080,19 @@ if (nrow(annotation_data) > 0) {
     )
 }
 
-# 
+# 完成图表设置
 p_main <- p_main +
-  
+  # 应用颜色方案
   scale_color_manual(values = threshold_colors) +
-  
+  # 设置x轴标签，包括样本数
   scale_x_discrete(limits = filtered_types, labels = x_labels) +
-
+  # 设置y轴
   scale_y_continuous(
     labels = percent_format(accuracy = 1),
     limits = c(0, y_max),
     expand = expansion(mult = c(0.1, 0.1))
   ) +
+  # 标签和标题
   labs(
     title = chart_title,
     subtitle = "Mean ± SEM for different thresholds\nWilcoxon test vs Nor group: *p<0.05, **p<0.01, ***p<0.001",
@@ -1077,7 +1100,7 @@ p_main <- p_main +
     y = "Proportion of MIMER+ Spots",
     color = "Threshold"
   ) +
-  # 
+  # 主题设置
   theme_minimal(base_size = 12) +
   theme(
     axis.text.x = element_text(angle = 45, hjust = 1, size = 10, face = "bold"),
@@ -1104,8 +1127,24 @@ p_main <- p_main +
     panel.border = element_rect(color = "gray80", fill = NA, linewidth = 0.5)
   )
 
-# 
+# 显示主图
 print(p_main)
+
+# 保存PDF
+# 先尝试关闭所有图形设备
+while (!is.null(dev.list())) {
+  dev.off()
+}
+
+# 尝试保存PDF
+
+pdf_file <- ifelse(analysis_type == "ME", 
+                    "ME_mimer_perc_5_10_20_mean_compare_vs_Nor_0302.pdf", 
+                    "development_mimer_perc_5_10_20_mean_compare_vs_Nor_0302.pdf")
+pdf(pdf_file, width = 7, height = 5)  # 稍微增加宽度以容纳更长的x轴标签
+print(p_main)
+dev.off()
+
 
 # Figure 4g -----
 library(dplyr)

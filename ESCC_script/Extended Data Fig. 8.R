@@ -116,12 +116,13 @@ ggplot(dat, aes(class, ID)) +
 ggsave(file="/realspace/project/proj_ESCC_STW_ZWM_2022_01/liuliqiu/figs1/function.pdf",height = 6,width = 9)
 
 #### E8C1
+# E8C1
 library(ggplot2)
 library(dplyr)
 library(data.table)
 
-setwd('C:/Users/Ron/Desktop/Figs/E8/')
-file_stats <- fread('C:/Users/Ron/Desktop/Figs/E8/E8_c1_file_stats.csv')
+file_stats <- fread('E8_c1_file_stats.csv')
+# 定义组织类型颜色映射
 tissue_colors <- c(
   "TF" = "#8B0000",
   "LpF" = "#CD5C5C", 
@@ -130,23 +131,28 @@ tissue_colors <- c(
   "LnF" = "#87CEEB"
 )
 
+# 过滤实际存在的组织类型
 present_tissues <- unique(file_stats$tissue)
 available_colors <- tissue_colors[names(tissue_colors) %in% present_tissues]
 
+# 处理p=0的情况
 file_stats <- file_stats %>%
   mutate(
     p_adj = ifelse(p_value == 0, .Machine$double.xmin, p_value),
     neg_log_p = -log10(p_adj)
   )
 
+# 计算y轴范围
 finite_p <- file_stats$neg_log_p[is.finite(file_stats$neg_log_p)]
 y_max <- if(length(finite_p) > 0) max(finite_p, na.rm = TRUE) else 10
 y_max <- if(is.infinite(y_max) | is.na(y_max)) 10 else y_max
 y_limit <- y_max * 1.2
 
+# 处理Inf值
 file_stats <- file_stats %>%
   mutate(neg_log_p_plot = ifelse(is.infinite(neg_log_p), y_limit * 0.9, neg_log_p))
 
+# 创建火山图
 p <- ggplot(file_stats, aes(x = diff, y = neg_log_p_plot, color = tissue)) +
   geom_hline(yintercept = -log10(0.05), linetype = "dashed", 
              color = "red", alpha = 0.5, linewidth = 0.8) +
@@ -175,6 +181,7 @@ p <- ggplot(file_stats, aes(x = diff, y = neg_log_p_plot, color = tissue)) +
     panel.border = element_rect(color = "gray80", fill = NA, linewidth = 0.5)
   )
 
+# 添加显著标签（可选）
 significant_points <- file_stats %>%
   filter(p_value < 0.05, abs(diff) > quantile(abs(diff), 0.75, na.rm = TRUE))
 
